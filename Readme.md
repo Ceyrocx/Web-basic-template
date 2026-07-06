@@ -9,9 +9,9 @@
 ![uv](https://img.shields.io/badge/uv-Python-DE5FE9?logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 
-> Un **repo de base** à copier-coller à chaque nouveau projet. Objectif : un fullstack **typé de bout en bout**, migré + testé, prêt à lancer en une commande, et suffisamment commenté pour comprendre **à quoi sert chaque fichier**.
+> Un **repo de base** à copier-coller à chaque nouveau projet. Objectif : un fullstack **typé de bout en bout**, migré, testé, linté et dockerisé (dev **+** prod), prêt à lancer en une commande — et assez commenté pour comprendre **à quoi sert chaque fichier**.
 
-Petite app de démo incluse : une page **« Hello World »** + un **formulaire** qui ajoute un item en base et affiche la liste (Mantine + React Query côté front, FastAPI + SQLModel côté back).
+Petite app de démo incluse : une page **« Hello World »** + un **formulaire** qui ajoute un item en base et affiche la liste.
 
 ---
 
@@ -31,9 +31,11 @@ Petite app de démo incluse : une page **« Hello World »** + un **formulaire**
 | | **Pydantic Settings** | config typée |
 | | **Alembic** | migrations de base de données |
 | | **pytest** + `TestClient` | tests |
+| | **Ruff** | lint + format |
 | | **uv** | gestion des paquets Python |
 | **Infra** | **PostgreSQL 17** | base de données |
-| | **Docker Compose** + **nginx** | orchestration + reverse-proxy |
+| | **Docker Compose** (+ override dev) · **nginx** | orchestration + reverse-proxy |
+| **Qualité** | **CI** GitHub Actions · **pre-commit** · `.editorconfig` · `.gitattributes` | automatisation |
 
 ---
 
@@ -41,10 +43,14 @@ Petite app de démo incluse : une page **« Hello World »** + un **formulaire**
 
 ```
 config/
-├── .env                      # variables lues par Docker Compose
-├── .env.example              # modèle committé
+├── .editorconfig             # formatage cohérent entre éditeurs
+├── .env / .env.example       # variables lues par Docker Compose
+├── .gitattributes            # fins de ligne LF forcées (cross-OS)
 ├── .gitignore
-├── docker-compose.yml        # orchestre db + backend + frontend
+├── .pre-commit-config.yaml   # vérifs avant chaque commit
+├── .github/workflows/ci.yml  # lint + tests + build (GitHub Actions)
+├── docker-compose.yml            # PROD : db + backend (uvicorn) + frontend (nginx)
+├── docker-compose.override.yml   # DEV  : hot-reload (auto-fusionné)
 │
 ├── backend/
 │   ├── app/
@@ -65,7 +71,8 @@ config/
 │   ├── alembic/
 │   │   ├── env.py            # config d'exécution Alembic (réutilise Settings + modèles)
 │   │   ├── script.py.mako    # gabarit des fichiers de migration
-│   │   └── versions/         # migrations générées (committées)
+│   │   └── versions/
+│   │       └── 293d51c9a311_create_item_table.py   # 1ʳᵉ migration (committée)
 │   ├── alembic.ini
 │   ├── tests/
 │   │   ├── conftest.py       # fixtures pytest (DB en mémoire + TestClient)
@@ -75,7 +82,7 @@ config/
 │   ├── .dockerignore
 │   ├── Dockerfile            # uv → uvicorn
 │   ├── entrypoint.sh         # migrations puis démarrage
-│   ├── pyproject.toml        # dépendances (uv) + config pytest
+│   ├── pyproject.toml        # deps (uv) + config pytest + ruff
 │   └── uv.lock
 │
 └── frontend/
@@ -83,15 +90,12 @@ config/
     │   ├── main.tsx          # providers (Mantine, Query, Router)
     │   ├── App.tsx           # aiguilleur des routes
     │   ├── index.css         # Tailwind
-    │   ├── api/
-    │   │   ├── axiosInstance.ts  # client HTTP configuré
-    │   │   └── items.ts          # fonctions d'appel /api/items
-    │   ├── hooks/useItems.ts     # hooks React Query
-    │   ├── schemas/item.ts       # schémas zod + types
-    │   ├── pages/Home.tsx        # la page « Hello » + formulaire
-    │   ├── routes/index.tsx      # config des routes
-    │   ├── components/           # (UI réutilisable)
-    │   └── layouts/              # (layouts partagés)
+    │   ├── api/{axiosInstance.ts, items.ts}   # client HTTP + appels /api
+    │   ├── hooks/useItems.ts                  # hooks React Query
+    │   ├── schemas/item.ts                    # schémas zod + types
+    │   ├── pages/Home.tsx                      # la page « Hello » + formulaire
+    │   ├── routes/index.tsx                    # config des routes
+    │   ├── components/  ·  layouts/            # (réutilisables / layouts)
     ├── public/favicon.svg
     ├── .env / .env.example       # variables Vite (VITE_*)
     ├── .dockerignore
@@ -105,16 +109,13 @@ config/
 
 ---
 
-## ⚡ Démarrage rapide (Docker)
+## ⚡ Démarrage rapide
 
 **Prérequis :** [Docker](https://www.docker.com/) uniquement.
 
 ```bash
-# 1) Crée le .env racine à partir du modèle
-cp .env.example .env
-
-# 2) Lance tout (db + backend + frontend)
-docker compose up --build
+cp .env.example .env        # crée le .env racine
+docker compose up --build   # DEV : hot-reload front + back (via l'override)
 ```
 
 | Service | URL |
@@ -122,18 +123,20 @@ docker compose up --build
 | 🖥️ Frontend | http://localhost:5173 |
 | 🔌 API (Swagger) | http://localhost:8000/docs |
 
-> ⚠️ **Une migration Alembic doit exister** (`backend/alembic/versions/`) pour que les tables soient créées au démarrage. Voir la section **[Migrations](#-migrations-de-base-de-données-alembic)** si le dossier est vide.
+Ajoute un nom dans le formulaire → il persiste en base. Les tables sont créées automatiquement par la migration Alembic au démarrage (`entrypoint.sh`).
 
-Pour **repartir de zéro** (⚠️ efface la base) :
+**DEV vs PROD** (voir [Docker](#-docker--fichier-par-fichier)) :
 ```bash
-docker compose down -v
+docker compose up                          # DEV  (override auto : uvicorn --reload + Vite)
+docker compose -f docker-compose.yml up    # PROD (nginx + uvicorn, override ignoré)
+docker compose down -v                     # tout arrêter + effacer la base
 ```
 
 ---
 
 ## 🔧 Développement en local (sans Docker)
 
-**Backend** (nécessite un Postgres accessible — voir l'astuce plus bas) :
+**Backend** (Postgres requis — voir l'astuce plus bas) :
 ```bash
 cd backend
 uv sync                                   # crée .venv + installe les deps
@@ -148,7 +151,7 @@ bun install
 bun run dev                               # → http://localhost:5173
 ```
 
-> 💡 **Postgres jetable** pour le dev backend (colle au `.env` par défaut) :
+> 💡 **Postgres jetable** (colle au `.env` par défaut) :
 > ```bash
 > docker run --name pg -e POSTGRES_USER=app -e POSTGRES_PASSWORD=changeme \
 >   -e POSTGRES_DB=app -p 5432:5432 -d postgres:17
@@ -158,7 +161,7 @@ bun run dev                               # → http://localhost:5173
 
 ## 🐍 Backend — fichier par fichier
 
-> Les commentaires ci-dessous sont là pour **la compréhension** : ton code réel n'a que le strict essentiel.
+> Les commentaires ci-dessous sont là pour **la compréhension** ; ton code réel n'a que le strict essentiel.
 
 ### `pyproject.toml`
 ```toml
@@ -176,16 +179,25 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [                             # installed only for local dev, excluded from the prod image
+dev = [                             # local dev only — excluded from the prod image
     "pytest>=8",                    # test runner
     "httpx>=0.28",                  # HTTP client used by FastAPI's TestClient
+    "ruff>=0.9",                    # linter + formatter
 ]
 
 [tool.uv]
-package = false                     # this is an app, not a library → don't try to build it
+package = false                     # this is an app, not a library → don't build it
 
 [tool.pytest.ini_options]
 pythonpath = ["."]                  # make the `app` package importable when running pytest
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+# E=pycodestyle, F=pyflakes, I=import sorting, UP=pyupgrade, B=bugbear
+select = ["E", "F", "I", "UP", "B"]
 ```
 
 ### `app/core/config.py`
@@ -194,7 +206,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # Load variables from .env; ignore unknown keys (the shared root .env has extra ones)
+    # Load from .env; ignore unknown keys (the shared root .env has extra ones)
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Postgres URL. In Docker this is overridden by an env var (host becomes "db")
@@ -204,7 +216,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
 
-settings = Settings()  # single instance imported everywhere: `from app.core.config import settings`
+settings = Settings()  # single instance imported everywhere
 ```
 
 ### `app/db/session.py`
@@ -220,14 +232,14 @@ engine = create_engine(settings.DATABASE_URL, echo=True)
 
 
 # FastAPI dependency: opens a session per request, and closes it after the response
-def get_session() -> Generator[Session, None, None]:
+def get_session() -> Generator[Session]:
     with Session(engine) as session:
         yield session
 ```
 
 ### `app/models/item.py`
 ```python
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 
 # table=True → this class maps to a REAL database table
@@ -329,11 +341,10 @@ def list_items(session: SessionDep) -> list[ItemRead]:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import settings
 from app.api.routes import health, items
+from app.core.config import settings
 
-
-# Note: no create_all here — the schema is owned by Alembic migrations now
+# No create_all here — the schema is owned by Alembic migrations now
 app = FastAPI(title="API")
 
 # Allow the frontend (different origin/port) to call the API
@@ -582,11 +593,15 @@ export default defineConfig({
 })
 ```
 
-> Les autres fichiers front (`package.json`, `tsconfig*.json`, `.oxlintrc.json`, `index.html`) sont le **scaffolding standard** généré par `bun create vite` — inchangés.
+> Les autres fichiers front (`package.json`, `tsconfig*.json`, `.oxlintrc.json`, `index.html`) sont le **scaffolding standard** de `bun create vite` — inchangés.
 
 ---
 
 ## 🐳 Docker — fichier par fichier
+
+**Deux fichiers, deux modes.** Compose **fusionne** automatiquement l'override quand tu tapes `docker compose up` :
+- `docker compose up` → **DEV** (hot-reload).
+- `docker compose -f docker-compose.yml up` → **PROD** (override ignoré).
 
 ### `backend/Dockerfile`
 ```dockerfile
@@ -599,7 +614,7 @@ WORKDIR /app
 
 # Install deps first → this layer stays cached until the lockfiles change
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev        # --frozen = exact lockfile, --no-dev = skip test deps
+RUN uv sync --frozen --no-dev        # --frozen = exact lockfile, --no-dev = skip test/lint deps
 
 # Then the app code
 COPY . .
@@ -611,17 +626,6 @@ ENTRYPOINT ["/app/entrypoint.sh"]                                       # always
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]  # default (overridable)
 ```
 
-### `backend/.dockerignore`
-```
-.venv/            # local venv is OS-specific; uv rebuilds it inside the image
-__pycache__/
-*.pyc
-.env              # never bake secrets into the image
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-```
-
 ### `frontend/Dockerfile`
 ```dockerfile
 # ─── Stage 1: build the static files with Bun ───
@@ -630,7 +634,7 @@ FROM oven/bun:1 AS build
 WORKDIR /app
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile   # exact lockfile install
+RUN bun install --frozen-lockfile
 
 COPY . .
 ARG VITE_API_URL                    # passed by docker-compose (build-time value)
@@ -673,14 +677,7 @@ server {
 }
 ```
 
-### `frontend/.dockerignore`
-```
-node_modules/     # OS-specific; bun reinstalls it inside the image
-dist/             # rebuilt in the image
-.env
-```
-
-### `docker-compose.yml`
+### `docker-compose.yml` (PROD)
 ```yaml
 services:
   db:
@@ -725,6 +722,30 @@ volumes:
   postgres_data:
 ```
 
+### `docker-compose.override.yml` (DEV — auto-merged)
+```yaml
+services:
+  backend:
+    volumes:
+      - ./backend:/app        # mount the source for live editing
+      - /app/.venv            # keep the image's venv (the bind mount would otherwise hide it)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      target: build           # use the Bun stage (source + deps), not the nginx one
+    command: bun run dev --host
+    environment:
+      CHOKIDAR_USEPOLLING: "true"   # reliable file-watching in Docker on Windows
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules     # keep the image's node_modules
+    ports: !override          # !override REPLACES the base 5173:80 mapping (not append)
+      - "5173:5173"           # Vite dev server
+```
+
+> `.dockerignore` (dans `backend/` et `frontend/`) excluent `.venv` / `node_modules` / `dist` / `.env` du contexte de build.
+
 ---
 
 ## 🔐 Variables d'environnement
@@ -739,12 +760,10 @@ Trois `.env`, **trois lecteurs différents**. Les vrais `.env` sont **gitignoré
 
 ### `.env` (racine)
 ```dotenv
-# Postgres
 POSTGRES_USER=app
 POSTGRES_PASSWORD=changeme
 POSTGRES_DB=app
 
-# Ports exposés sur ta machine
 DB_PORT=5432
 BACKEND_PORT=8000
 FRONTEND_PORT=5173
@@ -761,25 +780,13 @@ CORS_ORIGINS=["http://localhost:5173"]                             # JSON (list[
 VITE_API_URL=http://localhost:8000/api   # dev: call the backend directly (CORS)
 ```
 
-> **Rappel** : la même variable `DATABASE_URL` vaut `@localhost` en local et `@db` dans Docker (injectée par Compose). De même, `VITE_API_URL` vaut `http://localhost:8000/api` en dev et `/api` en prod (build arg → proxy nginx).
+> **Rappel** : `DATABASE_URL` vaut `@localhost` en local et `@db` en Docker. `VITE_API_URL` vaut l'URL complète en dev et `/api` en prod (build arg → proxy nginx).
 
 ---
 
-## 🧬 Migrations de base de données (Alembic)
+## 🧬 Migrations (Alembic)
 
-Alembic remplace `create_all` : c'est **« Git pour ton schéma »** — des migrations **versionnées** que tu commites, et qui se rejouent partout (ton PC, la prod, le conteneur).
-
-### `backend/alembic.ini`
-```ini
-[alembic]
-script_location = alembic          # where migration scripts live
-prepend_sys_path = .               # add backend/ to sys.path so env.py can import `app`
-version_path_separator = os
-
-# No sqlalchemy.url here → it is injected in env.py from app.core.config.settings
-
-# ... (+ standard logging config, never edited)
-```
+Alembic = **« Git pour ton schéma »** : des migrations **versionnées et committées**, rejouées partout via `alembic upgrade head` (l'`entrypoint.sh` le fait au démarrage). Une 1ʳᵉ migration est déjà présente (`alembic/versions/`).
 
 ### `backend/alembic/env.py`
 ```python
@@ -787,8 +794,8 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
-from alembic import context
 
+from alembic import context
 from app.core.config import settings
 from app.models.item import Item  # noqa: F401 — importing registers the table on SQLModel.metadata
 
@@ -803,72 +810,23 @@ if config.config_file_name is not None:
 # The "source of truth" schema Alembic diffs against the DB for autogenerate
 target_metadata = SQLModel.metadata
 
-
-def run_migrations_offline() -> None:      # emit SQL without connecting (rarely used)
-    url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, target_metadata=target_metadata,
-                      literal_binds=True, dialect_opts={"paramstyle": "named"})
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-def run_migrations_online() -> None:       # connect and apply (the usual mode)
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.", poolclass=pool.NullPool,
-    )
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-        with context.begin_transaction():
-            context.run_migrations()
-
-
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+# ... run_migrations_online/offline (standard boilerplate)
 ```
-> 🔑 **À retenir** : chaque **nouveau modèle** doit être importé dans `env.py` (comme `Item`), sinon Alembic ne le « voit » pas et génère une migration vide.
+> 🔑 **À retenir** : chaque **nouveau modèle** doit être importé dans `env.py` (comme `Item`), sinon Alembic génère une migration vide. Le gabarit `script.py.mako` contient un `import sqlmodel` (requis par les types de colonnes SQLModel).
 
-### `backend/alembic/script.py.mako`
-```mako
-"""${message}
-... (Alembic fills in the revision id, date, etc.)
-"""
-from typing import Sequence, Union
-
-from alembic import op
-import sqlalchemy as sa
-import sqlmodel                    # ← required: SQLModel migrations use sqlmodel column types
-${imports if imports else ""}
-
-# revision identifiers, used by Alembic.
-revision: str = ${repr(up_revision)}
-down_revision: Union[str, Sequence[str], None] = ${repr(down_revision)}
-# ...
-
-def upgrade() -> None:
-    ${upgrades if upgrades else "pass"}
-
-
-def downgrade() -> None:
-    ${downgrades if downgrades else "pass"}
-```
-
-### Générer & appliquer une migration
+### Créer une nouvelle migration
 ```bash
-docker compose down -v          # start from an empty DB (create_all may have left tables)
-docker compose up -d db         # start Postgres only
+docker compose up -d db         # Postgres tournant
 cd backend
-uv run alembic revision --autogenerate -m "create item table"   # generate → COMMIT the file
-uv run alembic upgrade head     # apply
+uv run alembic revision --autogenerate -m "your message"   # génère → COMMIT le fichier
+uv run alembic upgrade head     # applique
 ```
 
 ---
 
 ## 🧪 Tests
 
-Tests **isolés et rapides** : `TestClient` FastAPI + **SQLite en mémoire** injectée à la place de Postgres via un **override de dépendance** (le pattern de test FastAPI de référence). Aucun Postgres requis.
+Tests **isolés et rapides** : `TestClient` FastAPI + **SQLite en mémoire** injectée via un **override de dépendance** (pas de Postgres requis).
 
 ### `backend/tests/conftest.py`
 ```python
@@ -877,8 +835,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
-from app.main import app
 from app.db.session import get_session
+from app.main import app
 from app.models.item import Item  # noqa: F401 — register the table on metadata
 
 
@@ -904,14 +862,6 @@ def client_fixture(session: Session):
     app.dependency_overrides.clear()   # cleanup so tests don't leak into each other
 ```
 
-### `backend/tests/test_health.py`
-```python
-def test_health(client):               # pytest injects the `client` fixture by name
-    response = client.get("/api/health")
-    assert response.status_code == 200
-    assert response.json() == {"message": "Hello World"}
-```
-
 ### `backend/tests/test_items.py`
 ```python
 def test_create_and_list_items(client):
@@ -925,7 +875,6 @@ def test_create_and_list_items(client):
 
     items = client.get("/api/items").json()                        # now listed
     assert len(items) == 1
-    assert items[0]["name"] == "Alice"
 
 
 def test_create_item_requires_name(client):
@@ -933,11 +882,125 @@ def test_create_item_requires_name(client):
     assert response.status_code == 422
 ```
 
-### Lancer les tests
+```bash
+cd backend && uv run pytest -v      # lancer les tests
+```
+
+---
+
+## 🛠️ Qualité & outils
+
+### `.editorconfig`
+```ini
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf                # LF everywhere (matches .gitattributes)
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.py]
+indent_size = 4
+
+[*.{ts,tsx}]
+indent_size = 4
+
+[*.{json,yml,yaml,css,html}]
+indent_size = 2
+```
+
+### `.gitattributes`
+```gitattributes
+# Force LF line endings for all text files (cross-OS consistency).
+# Critical for entrypoint.sh: CRLF would break the shebang inside the Linux container.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+# ... other binaries
+
+bun.lock -diff                  # hide noisy machine-generated lockfiles from diffs
+uv.lock -diff
+```
+
+### Ruff (lint + format backend)
 ```bash
 cd backend
-uv run pytest -v
+uv run ruff check .        # lint
+uv run ruff check --fix .  # lint + auto-fix (incl. import sorting)
+uv run ruff format .       # format (like black)
 ```
+
+---
+
+## 🤖 CI & pre-commit
+
+### `.github/workflows/ci.yml`
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run ruff check .          # lint
+      - run: uv run ruff format --check . # format check
+      - run: uv run pytest                # tests (in-memory SQLite, no Postgres needed)
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint                 # oxlint
+      - run: bun run build                # tsc typecheck + vite build
+```
+
+### `.pre-commit-config.yaml`
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.0
+    hooks:
+      - id: ruff             # lint (auto-fix)
+        args: [--fix]
+      - id: ruff-format      # format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]     # allow Docker Compose custom tags (!override)
+      - id: check-added-large-files
+```
+
+**Installation (une fois) :**
+```bash
+uv tool install pre-commit
+pre-commit install             # branche le hook git (nécessite un repo git existant)
+pre-commit run --all-files
+```
+
+Trois filets de sécurité, à des moments différents : **édition** (`.editorconfig`) → **commit** (`pre-commit`) → **push** (CI).
 
 ---
 
@@ -953,8 +1016,7 @@ uv run pytest -v
 la liste se rafraîchit                        FastAPI  /api/items
                                                       │
                               route ──► crud ──► SQLModel ──► PostgreSQL
-                              (schemas: ItemCreate / ItemRead pour valider + sérialiser)
-                              (schéma géré par Alembic)
+                              (schemas ItemCreate/ItemRead · schéma géré par Alembic)
 ```
 
 ---
@@ -963,21 +1025,29 @@ la liste se rafraîchit                        FastAPI  /api/items
 
 - [x] **Alembic** — migrations câblées (remplace `create_all`)
 - [x] **Tests** — health + items (`TestClient` + SQLite en mémoire)
+- [x] **Mode dev Docker** — hot-reload front + back (override)
+- [x] **Qualité** — Ruff, CI GitHub Actions, pre-commit, editorconfig, gitattributes
 - [ ] **Auth** (JWT) → `core/security.py`, `models/user.py`, `routes/auth.py`, `deps.get_current_user`
-- [ ] **Mode dev Docker** → volumes montés + `--reload` pour le hot-reload en conteneur
+- [ ] **3D optionnelle** → `react-three-fiber` par projet (hors socle)
 
 ---
 
 ## 🚀 Rappel des commandes
 
 ```bash
-docker compose up --build                              # tout lancer
-docker compose down -v                                 # tout arrêter + effacer la base
+# Docker
+docker compose up --build                              # DEV (hot-reload)
+docker compose -f docker-compose.yml up --build        # PROD
+docker compose down -v                                 # stop + wipe DB
 
-cd backend && uv run uvicorn app.main:app --reload     # backend seul (local)
-cd backend && uv run pytest -v                         # lancer les tests
-cd backend && uv run alembic revision --autogenerate -m "msg"   # nouvelle migration
-cd backend && uv run alembic upgrade head              # appliquer les migrations
+# Backend (local)
+cd backend && uv run uvicorn app.main:app --reload     # serveur
+cd backend && uv run pytest -v                         # tests
+cd backend && uv run ruff check --fix . && uv run ruff format .   # lint + format
+cd backend && uv run alembic revision --autogenerate -m "msg"     # migration
+cd backend && uv run alembic upgrade head              # appliquer
 
-cd frontend && bun run dev                             # frontend seul (local)
+# Frontend (local)
+cd frontend && bun run dev                             # serveur
+cd frontend && bun run lint                            # oxlint
 ```

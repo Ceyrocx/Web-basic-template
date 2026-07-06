@@ -1,4 +1,4 @@
-# Auto-fusionné par `docker compose up` → bascule en mode dev
+# Auto-merged by `docker compose up` → switches everything to dev mode
 services:
   backend:
     volumes:

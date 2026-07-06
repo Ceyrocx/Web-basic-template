@@ -1,19 +1,19 @@
 FROM python:3.13-slim
 
-# Récupère le binaire uv depuis l'image officielle (pas besoin de l'installer via pip)
+# Copy the uv binary from its official image (no pip install needed)
 COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /uvx /bin/
 
 WORKDIR /app
 
-# 1) Dépendances d'abord (couche mise en cache tant que les lockfiles ne bougent pas)
+# Install deps first so this layer stays cached until the lockfiles change
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-# 2) Puis le code de l'application
+# Then the app code
 COPY . .
 RUN chmod +x entrypoint.sh
 
-# Le venv créé par uv → on le met dans le PATH pour appeler "uvicorn" directement
+# Put uv's venv on PATH so "uvicorn"/"alembic" resolve
 ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT ["/app/entrypoint.sh"]
