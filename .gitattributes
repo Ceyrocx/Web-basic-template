@@ -1,0 +1,16 @@
+# Enforce LF line endings for all text files (matches .editorconfig, keeps
+# entrypoint.sh working inside the Linux container regardless of the host OS).
+* text=auto eol=lf
+
+# Binary files — never touched by Git's line-ending conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Lockfiles: text, but hide from diffs (noisy, machine-generated).
+bun.lock -diff
+uv.lock -diff

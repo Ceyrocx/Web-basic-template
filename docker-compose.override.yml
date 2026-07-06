@@ -1,0 +1,19 @@
+# Auto-fusionné par `docker compose up` → bascule en mode dev
+services:
+  backend:
+    volumes:
+      - ./backend:/app        # mount the source for live editing
+      - /app/.venv            # keep the image's venv (don't let the mount hide it)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      target: build           # use the Bun stage (source + deps), not the nginx one
+    command: bun run dev --host
+    environment:
+      CHOKIDAR_USEPOLLING: "true"   # reliable file-watching in Docker on Windows
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules     # keep the image's node_modules
+    ports: !override
+      - "5173:5173"           # Vite dev server (replaces the 5173:80 nginx mapping)
