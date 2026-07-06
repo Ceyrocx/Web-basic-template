@@ -24,16 +24,19 @@ package = false
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+filterwarnings = [
+    "ignore:.*starlette\\.testclient.*",
+]
 
 [tool.ruff]
-line-length = 100                       # max line width
-target-version = "py313"                # assume Python 3.13 features
+line-length = 100
+target-version = "py313"
 
 [tool.ruff.lint]
 # E=pycodestyle, F=pyflakes, I=import sorting, UP=pyupgrade, B=bugbear
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pyright]
-include = ["app"]              # only type-check the app code (not alembic/tests)
+include = ["app"]
 pythonVersion = "3.13"
-typeCheckingMode = "basic"     # catches real errors without excessive strictness
+typeCheckingMode = "basic"

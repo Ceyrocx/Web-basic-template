@@ -754,7 +754,7 @@ typecheck: cd backend && uv run pyright
 migrate:   cd backend && uv run alembic upgrade head
 # … + migration, dev, logs, front-dev, front-lint, front-build
 ```
-> Sur **Windows** : `scoop install make` puis lance-le depuis **Git Bash**.
+> Sur **Windows** : `winget install ezwinports.make` (puis rouvre le terminal). Marche depuis **PowerShell** comme depuis Git Bash — la cible `help` est en `echo` pur (pas de `grep`/`awk`).
 
 ### `.pre-commit-config.yaml` — Ruff depuis le venv (zéro drift)
 ```yaml
