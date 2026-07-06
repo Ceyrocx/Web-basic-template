@@ -8,7 +8,15 @@ import '@mantine/core/styles.css'
 import './index.css'
 import App from './App.tsx'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 30_000,            // data stays "fresh" for 30s → fewer refetches
+            retry: 1,                     // retry a failed query once (default is 3)
+            refetchOnWindowFocus: false,  // don't refetch every time the tab regains focus
+        },
+    },
+})
 
 // Providers: Mantine (theme) → React Query (data cache) → Router (navigation)
 createRoot(document.getElementById('root')!).render(

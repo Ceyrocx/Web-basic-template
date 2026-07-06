@@ -8,8 +8,9 @@
 ![Bun](https://img.shields.io/badge/Bun-1-000000?logo=bun&logoColor=white)
 ![uv](https://img.shields.io/badge/uv-Python-DE5FE9?logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-> Un **repo de base** à copier-coller à chaque nouveau projet. Objectif : un fullstack **typé de bout en bout**, migré, testé, linté et dockerisé (dev **+** prod), prêt à lancer en une commande — et assez commenté pour comprendre **à quoi sert chaque fichier**.
+> Un **repo de base** à copier-coller à chaque nouveau projet. Objectif : un fullstack **typé de bout en bout**, migré, **testé des deux côtés**, linté, dockerisé (dev **+** prod), avec CI/pre-commit — prêt à lancer en une commande, et assez commenté pour comprendre **à quoi sert chaque fichier**.
 
 Petite app de démo incluse : une page **« Hello World »** + un **formulaire** qui ajoute un item en base et affiche la liste.
 
@@ -20,22 +21,13 @@ Petite app de démo incluse : une page **« Hello World »** + un **formulaire**
 | Couche | Techno | Rôle |
 |---|---|---|
 | **Frontend** | Bun · React 19 · Vite 8 · TypeScript | base du front |
-| | **Mantine** | composants UI + thème |
-| | **Tailwind v4** | classes utilitaires |
-| | **TanStack Query** | data-fetching + cache |
-| | **React Router** | navigation |
-| | **Zod** + `mantine-form-zod-resolver` | validation (types + formulaires) |
-| | **oxlint** | linter |
-| **Backend** | **FastAPI** (ASGI, uvicorn) | API |
-| | **SQLModel** | ORM (SQLAlchemy + Pydantic) |
-| | **Pydantic Settings** | config typée |
-| | **Alembic** | migrations de base de données |
-| | **pytest** + `TestClient` | tests |
-| | **Ruff** | lint + format |
-| | **uv** | gestion des paquets Python |
-| **Infra** | **PostgreSQL 17** | base de données |
-| | **Docker Compose** (+ override dev) · **nginx** | orchestration + reverse-proxy |
-| **Qualité** | **CI** GitHub Actions · **pre-commit** · `.editorconfig` · `.gitattributes` | automatisation |
+| | **Mantine** · **Tailwind v4** | composants UI + utilitaires |
+| | **TanStack Query** · **React Router** · **Zod** | données · routing · validation |
+| | **oxlint** · **Vitest** + Testing Library | lint · tests |
+| **Backend** | **FastAPI** · **SQLModel** · **Pydantic Settings** | API · ORM · config typée |
+| | **Alembic** · **pytest** · **Ruff** · **uv** | migrations · tests · lint · paquets |
+| **Infra** | **PostgreSQL 17** · **Docker Compose** (dev+prod) · **nginx** | DB · orchestration · reverse-proxy |
+| **Qualité** | **CI** · **pre-commit** · **Dependabot** · `Makefile` · `.editorconfig` · `.gitattributes` | automatisation |
 
 ---
 
@@ -43,79 +35,58 @@ Petite app de démo incluse : une page **« Hello World »** + un **formulaire**
 
 ```
 config/
-├── .editorconfig             # formatage cohérent entre éditeurs
+├── Makefile                  # raccourcis : make up / test / lint / migrate…
+├── LICENSE                   # MIT
+├── .editorconfig  .gitattributes  .gitignore
 ├── .env / .env.example       # variables lues par Docker Compose
-├── .gitattributes            # fins de ligne LF forcées (cross-OS)
-├── .gitignore
 ├── .pre-commit-config.yaml   # vérifs avant chaque commit
-├── .github/workflows/ci.yml  # lint + tests + build (GitHub Actions)
+├── .github/
+│   ├── workflows/ci.yml      # lint + tests + build (GitHub Actions)
+│   └── dependabot.yml        # màj auto des deps (actions, docker, python)
 ├── docker-compose.yml            # PROD : db + backend (uvicorn) + frontend (nginx)
 ├── docker-compose.override.yml   # DEV  : hot-reload (auto-fusionné)
 │
 ├── backend/
 │   ├── app/
-│   │   ├── main.py           # point d'entrée FastAPI (assemblage)
-│   │   ├── api/
-│   │   │   ├── deps.py       # dépendances injectables (session DB…)
-│   │   │   └── routes/
-│   │   │       ├── health.py # GET /api/health
-│   │   │       └── items.py  # POST/GET /api/items
-│   │   ├── core/
-│   │   │   ├── config.py     # Settings (env typées)
-│   │   │   └── security.py   # (auth — à venir)
-│   │   ├── crud/item.py      # accès aux données (Create/Read…)
-│   │   ├── db/session.py     # moteur + session Postgres
-│   │   ├── models/item.py    # table SQLModel
-│   │   ├── schemas/item.py   # formes d'entrée/sortie de l'API
+│   │   ├── main.py           # point d'entrée FastAPI
+│   │   ├── api/{deps.py, routes/{health.py, items.py}}
+│   │   ├── core/{config.py, security.py}
+│   │   ├── crud/item.py  ·  db/session.py
+│   │   ├── models/item.py  ·  schemas/item.py
 │   │   └── utils/
-│   ├── alembic/
-│   │   ├── env.py            # config d'exécution Alembic (réutilise Settings + modèles)
-│   │   ├── script.py.mako    # gabarit des fichiers de migration
-│   │   └── versions/
-│   │       └── 293d51c9a311_create_item_table.py   # 1ʳᵉ migration (committée)
+│   ├── alembic/{env.py, script.py.mako, versions/…create_item_table.py}
 │   ├── alembic.ini
-│   ├── tests/
-│   │   ├── conftest.py       # fixtures pytest (DB en mémoire + TestClient)
-│   │   ├── test_health.py
-│   │   └── test_items.py
-│   ├── .env / .env.example   # config backend en local (hors Docker)
-│   ├── .dockerignore
-│   ├── Dockerfile            # uv → uvicorn
+│   ├── tests/{conftest.py, test_health.py, test_items.py}
+│   ├── .env / .env.example  ·  .dockerignore
+│   ├── Dockerfile            # uv → uvicorn (non-root)
 │   ├── entrypoint.sh         # migrations puis démarrage
-│   ├── pyproject.toml        # deps (uv) + config pytest + ruff
-│   └── uv.lock
+│   └── pyproject.toml        # deps (uv) + pytest + ruff
 │
 └── frontend/
     ├── src/
-    │   ├── main.tsx          # providers (Mantine, Query, Router)
-    │   ├── App.tsx           # aiguilleur des routes
-    │   ├── index.css         # Tailwind
-    │   ├── api/{axiosInstance.ts, items.ts}   # client HTTP + appels /api
-    │   ├── hooks/useItems.ts                  # hooks React Query
-    │   ├── schemas/item.ts                    # schémas zod + types
-    │   ├── pages/Home.tsx                      # la page « Hello » + formulaire
-    │   ├── routes/index.tsx                    # config des routes
-    │   ├── components/  ·  layouts/            # (réutilisables / layouts)
+    │   ├── main.tsx  ·  App.tsx  ·  index.css
+    │   ├── api/{axiosInstance.ts, items.ts}
+    │   ├── hooks/useItems.ts  ·  schemas/item.ts
+    │   ├── pages/{Home.tsx, Home.test.tsx}
+    │   ├── routes/index.tsx  ·  components/  ·  layouts/
+    │   ├── setupTests.ts  ·  test-utils.tsx
     ├── public/favicon.svg
-    ├── .env / .env.example       # variables Vite (VITE_*)
-    ├── .dockerignore
-    ├── Dockerfile                # build Bun → nginx
-    ├── nginx.conf                # SPA + proxy /api
-    ├── index.html
-    ├── package.json / bun.lock
-    ├── vite.config.ts
-    └── tsconfig*.json
+    ├── .env / .env.example  ·  .dockerignore
+    ├── Dockerfile            # build Bun → nginx
+    ├── nginx.conf            # SPA + proxy /api + security headers
+    ├── vite.config.ts        # Vite + config Vitest
+    └── package.json  ·  bun.lock  ·  tsconfig*.json
 ```
 
 ---
 
 ## ⚡ Démarrage rapide
 
-**Prérequis :** [Docker](https://www.docker.com/) uniquement.
+**Prérequis :** [Docker](https://www.docker.com/) (et `make`, optionnel mais pratique).
 
 ```bash
-cp .env.example .env        # crée le .env racine
-docker compose up --build   # DEV : hot-reload front + back (via l'override)
+cp .env.example .env
+make up            # = docker compose up --build (DEV, hot-reload)
 ```
 
 | Service | URL |
@@ -123,32 +94,26 @@ docker compose up --build   # DEV : hot-reload front + back (via l'override)
 | 🖥️ Frontend | http://localhost:5173 |
 | 🔌 API (Swagger) | http://localhost:8000/docs |
 
-Ajoute un nom dans le formulaire → il persiste en base. Les tables sont créées automatiquement par la migration Alembic au démarrage (`entrypoint.sh`).
+Les tables sont créées automatiquement par la migration Alembic au démarrage.
 
-**DEV vs PROD** (voir [Docker](#-docker--fichier-par-fichier)) :
+**DEV vs PROD** (grâce à l'override auto-fusionné) :
 ```bash
-docker compose up                          # DEV  (override auto : uvicorn --reload + Vite)
-docker compose -f docker-compose.yml up    # PROD (nginx + uvicorn, override ignoré)
-docker compose down -v                     # tout arrêter + effacer la base
+make up            # DEV  : uvicorn --reload + Vite (hot-reload)
+make up-prod       # PROD : nginx + uvicorn (override ignoré)
+make down          # stop + efface la base
 ```
 
 ---
 
 ## 🔧 Développement en local (sans Docker)
 
-**Backend** (Postgres requis — voir l'astuce plus bas) :
 ```bash
-cd backend
-uv sync                                   # crée .venv + installe les deps
-uv run alembic upgrade head               # applique les migrations
+# Backend (Postgres requis — voir l'astuce plus bas)
+cd backend && uv sync && uv run alembic upgrade head
 uv run uvicorn app.main:app --reload      # → http://localhost:8000
-```
 
-**Frontend** :
-```bash
-cd frontend
-bun install
-bun run dev                               # → http://localhost:5173
+# Frontend
+cd frontend && bun install && bun run dev  # → http://localhost:5173
 ```
 
 > 💡 **Postgres jetable** (colle au `.env` par défaut) :
@@ -161,44 +126,7 @@ bun run dev                               # → http://localhost:5173
 
 ## 🐍 Backend — fichier par fichier
 
-> Les commentaires ci-dessous sont là pour **la compréhension** ; ton code réel n'a que le strict essentiel.
-
-### `pyproject.toml`
-```toml
-[project]
-name = "backend"
-version = "0.1.0"
-requires-python = ">=3.13"          # uv can install this Python version for you
-dependencies = [
-    "fastapi>=0.115",               # web framework (ASGI) — replaces Flask
-    "uvicorn[standard]>=0.34",      # ASGI server that runs the app
-    "sqlmodel>=0.0.22",             # ORM = SQLAlchemy + Pydantic in one
-    "psycopg[binary]>=3.2",         # PostgreSQL driver (precompiled)
-    "pydantic-settings>=2.7",       # typed config from env vars / .env
-    "alembic>=1.14",                # database migrations
-]
-
-[dependency-groups]
-dev = [                             # local dev only — excluded from the prod image
-    "pytest>=8",                    # test runner
-    "httpx>=0.28",                  # HTTP client used by FastAPI's TestClient
-    "ruff>=0.9",                    # linter + formatter
-]
-
-[tool.uv]
-package = false                     # this is an app, not a library → don't build it
-
-[tool.pytest.ini_options]
-pythonpath = ["."]                  # make the `app` package importable when running pytest
-
-[tool.ruff]
-line-length = 100
-target-version = "py313"
-
-[tool.ruff.lint]
-# E=pycodestyle, F=pyflakes, I=import sorting, UP=pyupgrade, B=bugbear
-select = ["E", "F", "I", "UP", "B"]
-```
+> Commentaires **pédagogiques** ci-dessous ; ton code réel n'a que l'essentiel.
 
 ### `app/core/config.py`
 ```python
@@ -209,11 +137,9 @@ class Settings(BaseSettings):
     # Load from .env; ignore unknown keys (the shared root .env has extra ones)
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Postgres URL. In Docker this is overridden by an env var (host becomes "db")
+    # In Docker this is overridden by an env var (host becomes "db")
     DATABASE_URL: str = "postgresql+psycopg://app:changeme@localhost:5432/app"
-
-    # Frontend origins allowed by CORS. When set via env, parsed as JSON (list[str])
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173"]   # parsed as JSON when set via env
 
 
 settings = Settings()  # single instance imported everywhere
@@ -227,39 +153,36 @@ from sqlmodel import Session, create_engine
 
 from app.core.config import settings
 
-# The engine = connection pool to Postgres, created once. echo=True logs SQL (dev only)
+# Connection pool to Postgres, created once. echo=True logs SQL (dev only)
 engine = create_engine(settings.DATABASE_URL, echo=True)
 
 
-# FastAPI dependency: opens a session per request, and closes it after the response
+# FastAPI dependency: one session per request, closed after the response
 def get_session() -> Generator[Session]:
     with Session(engine) as session:
         yield session
 ```
 
-### `app/models/item.py`
+### `app/models/item.py`  ·  `app/schemas/item.py`
 ```python
+# models/item.py — the DB table
 from sqlmodel import Field, SQLModel
 
 
-# table=True → this class maps to a REAL database table
-class Item(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)  # None before insert; the DB assigns it
-    name: str                                               # NOT NULL text column
+class Item(SQLModel, table=True):                           # table=True → real table
+    id: int | None = Field(default=None, primary_key=True)  # None until the DB assigns it
+    name: str
 ```
-
-### `app/schemas/item.py`
 ```python
+# schemas/item.py — API input/output shapes (no table=True)
 from sqlmodel import SQLModel
 
 
-# No table=True → these are pure validation/serialization schemas, not tables
-
-class ItemCreate(SQLModel):   # what the client sends to create an item (no id)
+class ItemCreate(SQLModel):   # request body (no id)
     name: str
 
 
-class ItemRead(SQLModel):     # what the API returns (id guaranteed present)
+class ItemRead(SQLModel):     # response (id guaranteed present)
     id: int
     name: str
 ```
@@ -272,64 +195,49 @@ from app.models.item import Item
 from app.schemas.item import ItemCreate
 
 
-# Insert a new row, then return it with its DB-generated id
 def create_item(session: Session, item_in: ItemCreate) -> Item:
     item = Item(name=item_in.name)
-    session.add(item)      # stage the INSERT
-    session.commit()       # write it to Postgres
+    session.add(item)
+    session.commit()
     session.refresh(item)  # reload so item.id is populated
     return item
 
 
-# SELECT * FROM item
 def get_items(session: Session) -> list[Item]:
-    statement = select(Item)
-    return list(session.exec(statement).all())
+    return list(session.exec(select(Item)).all())
 ```
 
-### `app/api/deps.py`
+### `app/api/deps.py`  ·  `app/api/routes/*`
 ```python
+# deps.py — reusable "inject a DB session" annotation
 from typing import Annotated
-
 from fastapi import Depends
 from sqlmodel import Session
-
 from app.db.session import get_session
 
-# Reusable alias → write `session: SessionDep` in routes instead of Depends(get_session)
 SessionDep = Annotated[Session, Depends(get_session)]
 ```
-
-### `app/api/routes/health.py`
 ```python
+# routes/health.py
 from fastapi import APIRouter
-
 router = APIRouter()
 
-
-# GET /api/health → simple liveness check
-@router.get("/health")
+@router.get("/health")                      # GET /api/health
 def health() -> dict[str, str]:
     return {"message": "Hello World"}
 ```
-
-### `app/api/routes/items.py`
 ```python
+# routes/items.py
 from fastapi import APIRouter
-
 from app.api.deps import SessionDep
 from app.crud.item import create_item, get_items
 from app.schemas.item import ItemCreate, ItemRead
 
 router = APIRouter()
 
-
-# response_model=ItemRead → FastAPI converts the returned Item into the public schema
-@router.post("/items", response_model=ItemRead)
+@router.post("/items", response_model=ItemRead)   # response_model → public schema
 def add_item(item_in: ItemCreate, session: SessionDep) -> ItemRead:
-    # item_in = the JSON body, auto-validated against ItemCreate (422 on error)
-    return create_item(session, item_in)
-
+    return create_item(session, item_in)           # item_in = JSON body, auto-validated
 
 @router.get("/items", response_model=list[ItemRead])
 def list_items(session: SessionDep) -> list[ItemRead]:
@@ -344,11 +252,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import health, items
 from app.core.config import settings
 
-# No create_all here — the schema is owned by Alembic migrations now
+# No create_all here — the schema is owned by Alembic migrations
 app = FastAPI(title="API")
 
-# Allow the frontend (different origin/port) to call the API
-app.add_middleware(
+app.add_middleware(                       # let the frontend (other origin) call the API
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
@@ -356,31 +263,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount every router under /api → /api/health, /api/items
-app.include_router(health.router, prefix="/api")
+app.include_router(health.router, prefix="/api")   # /api/health, /api/items
 app.include_router(items.router, prefix="/api")
 ```
 
 ### `backend/entrypoint.sh`
 ```sh
 #!/bin/sh
-set -e                               # stop on the first error
-
-# Apply DB migrations before the server starts (Alembic owns the schema)
-alembic upgrade head
-
-exec "$@"                            # run the CMD (uvicorn ...). exec = clean signal handling
+set -e
+alembic upgrade head   # apply DB migrations before the server starts
+exec "$@"              # then run the CMD (uvicorn ...)
 ```
 
 ---
 
 ## 🎨 Frontend — fichier par fichier
-
-### `src/index.css`
-```css
-/* Tailwind v4 — the Vite plugin is already registered in vite.config.ts */
-@import "tailwindcss";
-```
 
 ### `src/main.tsx`
 ```tsx
@@ -390,13 +287,22 @@ import { BrowserRouter } from 'react-router-dom'
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import '@mantine/core/styles.css'   // Mantine styles (required)
-import './index.css'                // Tailwind
+import '@mantine/core/styles.css'
+import './index.css'
 import App from './App.tsx'
 
-const queryClient = new QueryClient()   // React Query cache instance
+// Sensible React Query defaults for the whole app
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,            // data stays "fresh" for 30s → fewer refetches
+      retry: 1,                     // retry a failed query once (default is 3)
+      refetchOnWindowFocus: false,  // don't refetch every time the tab regains focus
+    },
+  },
+})
 
-// Providers wrap the whole app: theme (Mantine) → data (Query) → routing (Router)
+// Providers: Mantine (theme) → React Query (data cache) → Router (navigation)
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MantineProvider>
@@ -410,113 +316,56 @@ createRoot(document.getElementById('root')!).render(
 )
 ```
 
-### `src/api/axiosInstance.ts`
+### `src/api/axiosInstance.ts`  ·  `src/schemas/item.ts`  ·  `src/api/items.ts`
 ```ts
+// axiosInstance.ts — one configured HTTP client
 import axios from 'axios'
-
-// One configured HTTP client, reused everywhere
-const axiosInstance = axios.create({
-  // Dev: hit FastAPI directly on :8000. Prod: baked to "/api" (nginx proxy) at build time
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api',
-  headers: { 'Content-Type': 'application/json' },  // FastAPI reads JSON bodies
-  withCredentials: true,                            // send cookies/auth across origins
+export default axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api',  // /api in prod (nginx)
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
-
-export default axiosInstance
 ```
-
-### `src/schemas/item.ts`
 ```ts
+// schemas/item.ts — zod validators that mirror the backend schemas
 import { z } from 'zod'
-
-// Runtime validators that mirror the backend schemas
-export const itemSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-})
-
-export const itemCreateSchema = z.object({
-  name: z.string().min(1, 'Le nom est requis'),   // also drives the form validation
-})
-
-// TS types derived from the schemas → declared once, no duplication
-export type Item = z.infer<typeof itemSchema>
+export const itemSchema = z.object({ id: z.number(), name: z.string() })
+export const itemCreateSchema = z.object({ name: z.string().min(1, 'Le nom est requis') })
+export type Item = z.infer<typeof itemSchema>          // types derived from schemas
 export type ItemCreate = z.infer<typeof itemCreateSchema>
 ```
-
-### `src/api/items.ts`
 ```ts
+// api/items.ts — endpoint functions, validated at runtime
 import { z } from 'zod'
-
 import axiosInstance from './axiosInstance'
 import { itemSchema, type Item, type ItemCreate } from '../schemas/item'
 
-// GET /api/items → validated array of items
 export async function getItems(): Promise<Item[]> {
-  const response = await axiosInstance.get('/items')
-  return z.array(itemSchema).parse(response.data)   // runtime-check the response
+  const res = await axiosInstance.get('/items')
+  return z.array(itemSchema).parse(res.data)           // runtime-check the response
 }
-
-// POST /api/items → the created item
 export async function createItem(data: ItemCreate): Promise<Item> {
-  const response = await axiosInstance.post('/items', data)
-  return itemSchema.parse(response.data)
+  const res = await axiosInstance.post('/items', data)
+  return itemSchema.parse(res.data)
 }
 ```
 
 ### `src/hooks/useItems.ts`
 ```ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-
 import { getItems, createItem } from '../api/items'
 
-// Read hook: gives { data, isLoading, isError, ... } + caching for free
-export function useItems() {
-  return useQuery({
-    queryKey: ['items'],   // cache key
-    queryFn: getItems,
-  })
+export function useItems() {                            // read: { data, isLoading, isError }
+  return useQuery({ queryKey: ['items'], queryFn: getItems })
 }
 
-// Write hook: create an item, then refresh the list automatically
-export function useCreateItem() {
+export function useCreateItem() {                       // write: create then refresh the list
   const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: createItem,
-    onSuccess: () => {
-      // Mark ['items'] stale → React Query refetches the list
-      queryClient.invalidateQueries({ queryKey: ['items'] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
   })
 }
-```
-
-### `src/App.tsx`
-```tsx
-import { useRoutes } from 'react-router-dom'
-
-import routes from './routes'
-
-// Renders the component matching the current URL
-export default function App() {
-  const element = useRoutes(routes)
-  return <>{element}</>
-}
-```
-
-### `src/routes/index.tsx`
-```tsx
-import type { RouteObject } from 'react-router-dom'
-
-import Home from '../pages/Home'
-
-const routes: RouteObject[] = [
-  { path: '/', element: <Home /> },
-  { path: '*', element: <div className="p-8">404 — Not Found</div> },   // catch-all
-]
-
-export default routes
 ```
 
 ### `src/pages/Home.tsx`
@@ -529,20 +378,16 @@ import { itemCreateSchema, type ItemCreate } from '../schemas/item'
 import { useItems, useCreateItem } from '../hooks/useItems'
 
 export default function Home() {
-  const { data: items, isLoading, isError } = useItems()   // the list + states
-  const createItem = useCreateItem()                       // the mutation
+  const { data: items, isLoading, isError } = useItems()
+  const createItem = useCreateItem()
 
-  // Form validated by the SAME zod schema as the API
   const form = useForm<ItemCreate>({
     initialValues: { name: '' },
-    validate: zodResolver(itemCreateSchema),
+    validate: zodResolver(itemCreateSchema),   // same schema as the API
   })
 
-  // Validates first, then POSTs and clears the field on success
   const handleSubmit = form.onSubmit((values) => {
-    createItem.mutate(values, {
-      onSuccess: () => form.reset(),
-    })
+    createItem.mutate(values, { onSuccess: () => form.reset() })
   })
 
   return (
@@ -555,12 +400,9 @@ export default function Home() {
             label="Nom"
             placeholder="Entre un nom"
             style={{ flex: 1 }}
-            // getInputProps wires value + onChange + error to the form state
-            {...form.getInputProps('name')}
+            {...form.getInputProps('name')}    // wires value + onChange + error
           />
-          <Button type="submit" loading={createItem.isPending}>
-            Ajouter
-          </Button>
+          <Button type="submit" loading={createItem.isPending}>Ajouter</Button>
         </Group>
       </form>
 
@@ -568,9 +410,7 @@ export default function Home() {
         {isLoading && <Text>Chargement…</Text>}
         {isError && <Text c="red">Erreur de chargement</Text>}
         {items?.map((item) => (
-          <Card key={item.id} withBorder padding="md">
-            <Text>{item.name}</Text>
-          </Card>
+          <Card key={item.id} withBorder padding="md"><Text>{item.name}</Text></Card>
         ))}
         {items?.length === 0 && <Text c="dimmed">Aucun item pour l'instant.</Text>}
       </Stack>
@@ -579,75 +419,55 @@ export default function Home() {
 }
 ```
 
-### `vite.config.ts`
-```ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-
-export default defineConfig({
-  plugins: [
-    react(),        // React fast-refresh
-    tailwindcss(),  // Tailwind v4 (no separate config file needed)
-  ],
-})
-```
-
-> Les autres fichiers front (`package.json`, `tsconfig*.json`, `.oxlintrc.json`, `index.html`) sont le **scaffolding standard** de `bun create vite` — inchangés.
+> `App.tsx` (routeur) et `routes/index.tsx` (config des routes) sont inchangés ; `package.json`/`tsconfig*` = scaffolding Bun+Vite.
 
 ---
 
 ## 🐳 Docker — fichier par fichier
 
-**Deux fichiers, deux modes.** Compose **fusionne** automatiquement l'override quand tu tapes `docker compose up` :
-- `docker compose up` → **DEV** (hot-reload).
-- `docker compose -f docker-compose.yml up` → **PROD** (override ignoré).
+**Deux fichiers, deux modes.** `docker compose up` **fusionne** l'override (DEV) ; `docker compose -f docker-compose.yml up` = PROD.
 
 ### `backend/Dockerfile`
 ```dockerfile
 FROM python:3.13-slim
 
-# Grab the uv binary from its official image (no pip install needed)
-COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /uvx /bin/   # grab the uv binary
 
 WORKDIR /app
 
-# Install deps first → this layer stays cached until the lockfiles change
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev        # --frozen = exact lockfile, --no-dev = skip test/lint deps
+COPY pyproject.toml uv.lock ./          # deps first → layer cached until lockfiles change
+RUN uv sync --frozen --no-dev
 
-# Then the app code
 COPY . .
 RUN chmod +x entrypoint.sh
 
-ENV PATH="/app/.venv/bin:$PATH"      # put uv's venv on PATH so "uvicorn"/"alembic" resolve
+ENV PATH="/app/.venv/bin:$PATH"         # so "uvicorn"/"alembic" resolve
 
-ENTRYPOINT ["/app/entrypoint.sh"]                                       # always runs (migrations)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]  # default (overridable)
+# Run as a non-root user (security best practice)
+RUN useradd --create-home appuser && chown -R appuser:appuser /app
+USER appuser
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### `frontend/Dockerfile`
 ```dockerfile
-# ─── Stage 1: build the static files with Bun ───
+# Stage 1: build the static files with Bun
 FROM oven/bun:1 AS build
-
 WORKDIR /app
-
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
-
 COPY . .
-ARG VITE_API_URL                    # passed by docker-compose (build-time value)
-ENV VITE_API_URL=$VITE_API_URL      # Vite bakes VITE_* vars at build time
-RUN bun run build                   # outputs /app/dist
+ARG VITE_API_URL                        # passed by docker-compose (build-time)
+ENV VITE_API_URL=$VITE_API_URL          # Vite bakes VITE_* at build
+RUN bun run build
 
-# ─── Stage 2: serve the build with nginx ───
+# Stage 2: serve with nginx (only the build lands in the final image)
 FROM nginx:alpine AS prod
-
 RUN rm -rf /usr/share/nginx/html/*
-COPY --from=build /app/dist /usr/share/nginx/html   # only the build lands in the final image
+COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
@@ -657,17 +477,18 @@ CMD ["nginx", "-g", "daemon off;"]
 server {
     listen 80;
     server_name _;
-
     root /usr/share/nginx/html;
     index index.html;
 
-    # SPA fallback: unknown paths return index.html so React Router can handle them
-    location / {
+    # Security headers (sent on every response, incl. errors)
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    location / {                              # SPA fallback → index.html
         try_files $uri $uri/ /index.html;
     }
-
-    # Forward /api/* to the backend service (no trailing slash → keeps the /api prefix)
-    location /api/ {
+    location /api/ {                          # proxy to backend (keeps the /api prefix)
         proxy_pass http://backend:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -677,20 +498,18 @@ server {
 }
 ```
 
-### `docker-compose.yml` (PROD)
+### `docker-compose.yml` (PROD) — avec healthchecks
 ```yaml
 services:
   db:
     image: postgres:17
-    environment:                       # Postgres reads these on first boot to create db + user
+    environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data   # persist DB data across restarts
-    healthcheck:                                  # the backend waits until this passes
+    ports: ["${DB_PORT:-5432}:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]      # persist data
+    healthcheck:                                            # backend waits on this
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
@@ -699,24 +518,30 @@ services:
   backend:
     build: ./backend
     depends_on:
-      db:
-        condition: service_healthy   # start only once Postgres is ready
+      db: { condition: service_healthy }                   # start once Postgres is ready
     environment:
-      # Host is "db" (the service name) inside Docker, not localhost
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      CORS_ORIGINS: '["http://localhost:5173"]'   # JSON string → parsed into list[str]
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      CORS_ORIGINS: '["http://localhost:5173"]'            # JSON → list[str]
+    ports: ["${BACKEND_PORT:-8000}:8000"]
+    healthcheck:                                           # uses python (no curl needed)
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s                                    # grace period for boot + migrations
 
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_API_URL: /api           # prod build → same-origin /api (nginx proxies it)
+      args: { VITE_API_URL: /api }                         # same-origin /api (nginx proxies)
     depends_on:
-      - backend
-    ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      backend: { condition: service_healthy }              # wait until the API is healthy
+    ports: ["${FRONTEND_PORT:-5173}:80"]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   postgres_data:
@@ -732,101 +557,63 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
-    build:
-      target: build           # use the Bun stage (source + deps), not the nginx one
+    build: { target: build }  # use the Bun stage, not nginx
     command: bun run dev --host
-    environment:
-      CHOKIDAR_USEPOLLING: "true"   # reliable file-watching in Docker on Windows
+    environment: { CHOKIDAR_USEPOLLING: "true" }   # reliable file-watching on Windows
     volumes:
       - ./frontend:/app
-      - /app/node_modules     # keep the image's node_modules
-    ports: !override          # !override REPLACES the base 5173:80 mapping (not append)
-      - "5173:5173"           # Vite dev server
+      - /app/node_modules
+    ports: !override          # !override REPLACES the base 5173:80 (not append)
+      - "5173:5173"
+    healthcheck: { disable: true }   # dev runs Vite on 5173, not nginx on 80
 ```
-
-> `.dockerignore` (dans `backend/` et `frontend/`) excluent `.venv` / `node_modules` / `dist` / `.env` du contexte de build.
 
 ---
 
 ## 🔐 Variables d'environnement
 
-Trois `.env`, **trois lecteurs différents**. Les vrais `.env` sont **gitignorés** ; committe les `.env.example`.
+Trois `.env`, **trois lecteurs**. Vrais `.env` gitignorés ; committe les `.env.example`.
 
 | Fichier | Lu par | Contenu | Secret ? |
 |---|---|---|---|
-| `.env` (racine) | Docker Compose | Postgres + ports | 🔒 oui |
-| `backend/.env` | Pydantic Settings (hors Docker) | `DATABASE_URL`, CORS | 🔒 oui |
-| `frontend/.env` | Vite (au build/dev) | `VITE_*` uniquement | ⚠️ **public** |
+| `.env` (racine) | Docker Compose | Postgres + ports | 🔒 |
+| `backend/.env` | Pydantic Settings (hors Docker) | `DATABASE_URL`, CORS | 🔒 |
+| `frontend/.env` | Vite | `VITE_*` uniquement | ⚠️ public |
 
-### `.env` (racine)
 ```dotenv
+# .env (racine)
 POSTGRES_USER=app
 POSTGRES_PASSWORD=changeme
 POSTGRES_DB=app
-
 DB_PORT=5432
 BACKEND_PORT=8000
 FRONTEND_PORT=5173
 ```
-
-### `backend/.env`
 ```dotenv
-DATABASE_URL=postgresql+psycopg://app:changeme@localhost:5432/app   # local: host = localhost
-CORS_ORIGINS=["http://localhost:5173"]                             # JSON (list[str])
+# backend/.env  → DATABASE_URL=postgresql+psycopg://app:changeme@localhost:5432/app  (localhost!)
+# frontend/.env → VITE_API_URL=http://localhost:8000/api  (dev; "/api" in the prod build)
 ```
 
-### `frontend/.env`
-```dotenv
-VITE_API_URL=http://localhost:8000/api   # dev: call the backend directly (CORS)
-```
-
-> **Rappel** : `DATABASE_URL` vaut `@localhost` en local et `@db` en Docker. `VITE_API_URL` vaut l'URL complète en dev et `/api` en prod (build arg → proxy nginx).
+> `DATABASE_URL` vaut `@localhost` en local et `@db` en Docker. `VITE_API_URL` : URL complète en dev, `/api` en prod.
 
 ---
 
 ## 🧬 Migrations (Alembic)
 
-Alembic = **« Git pour ton schéma »** : des migrations **versionnées et committées**, rejouées partout via `alembic upgrade head` (l'`entrypoint.sh` le fait au démarrage). Une 1ʳᵉ migration est déjà présente (`alembic/versions/`).
+« Git pour ton schéma » : migrations **versionnées et committées**, rejouées via `alembic upgrade head` (fait par l'`entrypoint.sh`). Une 1ʳᵉ migration est déjà présente.
 
-### `backend/alembic/env.py`
-```python
-from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config, pool
-from sqlmodel import SQLModel
-
-from alembic import context
-from app.core.config import settings
-from app.models.item import Item  # noqa: F401 — importing registers the table on SQLModel.metadata
-
-config = context.config
-
-# Reuse our app's DATABASE_URL instead of hardcoding it in alembic.ini
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)   # set up logging
-
-# The "source of truth" schema Alembic diffs against the DB for autogenerate
-target_metadata = SQLModel.metadata
-
-# ... run_migrations_online/offline (standard boilerplate)
-```
-> 🔑 **À retenir** : chaque **nouveau modèle** doit être importé dans `env.py` (comme `Item`), sinon Alembic génère une migration vide. Le gabarit `script.py.mako` contient un `import sqlmodel` (requis par les types de colonnes SQLModel).
-
-### Créer une nouvelle migration
 ```bash
-docker compose up -d db         # Postgres tournant
-cd backend
-uv run alembic revision --autogenerate -m "your message"   # génère → COMMIT le fichier
-uv run alembic upgrade head     # applique
+make migrate                              # apply migrations
+make migration m="create user table"     # generate a new one (then COMMIT the file)
 ```
+> 🔑 Chaque **nouveau modèle** doit être importé dans `alembic/env.py` (comme `Item`), sinon la migration serait vide. Le gabarit `script.py.mako` contient `import sqlmodel` (requis par les types de colonnes).
 
 ---
 
 ## 🧪 Tests
 
-Tests **isolés et rapides** : `TestClient` FastAPI + **SQLite en mémoire** injectée via un **override de dépendance** (pas de Postgres requis).
+**Backend** — `TestClient` FastAPI + **SQLite en mémoire** injectée via un override de dépendance (pas de Postgres requis).
+**Frontend** — **Vitest** + Testing Library, API **mockée** (le pendant front du même principe).
 
 ### `backend/tests/conftest.py`
 ```python
@@ -842,12 +629,8 @@ from app.models.item import Item  # noqa: F401 — register the table on metadat
 
 @pytest.fixture(name="session")
 def session_fixture():
-    # Fresh in-memory SQLite per test → fast and isolated, no Postgres needed
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)      # in-memory, isolated per test
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
@@ -855,199 +638,213 @@ def session_fixture():
 
 @pytest.fixture(name="client")
 def client_fixture(session: Session):
-    # Override the real DB dependency with the test session
-    app.dependency_overrides[get_session] = lambda: session
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()   # cleanup so tests don't leak into each other
+    app.dependency_overrides[get_session] = lambda: session   # swap the real DB
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 ```
 
-### `backend/tests/test_items.py`
-```python
-def test_create_and_list_items(client):
-    assert client.get("/api/items").json() == []                   # starts empty
+### `frontend/vite.config.ts`  ·  `src/setupTests.ts`  ·  `src/test-utils.tsx`
+```ts
+// vite.config.ts — Vitest config (jsdom = fake DOM)
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
-    response = client.post("/api/items", json={"name": "Alice"})   # create
-    assert response.status_code == 200
-    created = response.json()
-    assert created["name"] == "Alice"
-    assert isinstance(created["id"], int)
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  test: { environment: 'jsdom', setupFiles: './src/setupTests.ts' },
+})
+```
+```ts
+// setupTests.ts — runs before each test file
+import '@testing-library/jest-dom/vitest'
+import { afterEach, vi } from 'vitest'
+import { cleanup } from '@testing-library/react'
 
-    items = client.get("/api/items").json()                        # now listed
-    assert len(items) == 1
+afterEach(() => cleanup())               // unmount between tests (no auto-cleanup w/o globals)
 
+// jsdom lacks these browser APIs that Mantine relies on — stub them
+vi.stubGlobal('matchMedia', (q: string) => ({
+  matches: false, media: q, onchange: null,
+  addListener: vi.fn(), removeListener: vi.fn(),
+  addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+}))
+vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+```
+```tsx
+// test-utils.tsx — render wrapped in the app's providers
+import type { ReactNode } from 'react'
+import { render } from '@testing-library/react'
+import { MantineProvider } from '@mantine/core'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-def test_create_item_requires_name(client):
-    response = client.post("/api/items", json={})   # missing "name" → validation error
-    assert response.status_code == 422
+export function renderWithProviders(ui: ReactNode) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <MantineProvider><QueryClientProvider client={queryClient}>{ui}</QueryClientProvider></MantineProvider>,
+  )
+}
+```
+
+### `frontend/src/pages/Home.test.tsx`
+```tsx
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+
+import Home from './Home'
+import { renderWithProviders } from '../test-utils'
+import * as itemsApi from '../api/items'
+
+vi.mock('../api/items')                  // no network in tests
+
+describe('Home', () => {
+  beforeEach(() => {
+    vi.mocked(itemsApi.getItems).mockResolvedValue([])
+    vi.mocked(itemsApi.createItem).mockResolvedValue({ id: 1, name: 'Alice' })
+  })
+
+  it('renders the title', () => {
+    renderWithProviders(<Home />)
+    expect(screen.getByText('Hello World 👋')).toBeInTheDocument()
+  })
+
+  it('submits the form with the typed name', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Home />)
+    await user.type(screen.getByLabelText('Nom'), 'Alice')
+    await user.click(screen.getByRole('button', { name: 'Ajouter' }))
+    // TanStack Query passes a 2nd (context) arg to mutationFn → check the 1st arg only
+    await waitFor(() => expect(itemsApi.createItem).toHaveBeenCalled())
+    expect(vi.mocked(itemsApi.createItem).mock.calls[0][0]).toEqual({ name: 'Alice' })
+  })
+})
 ```
 
 ```bash
-cd backend && uv run pytest -v      # lancer les tests
+make test         # backend (pytest)
+cd frontend && bun run test     # frontend (Vitest, watch)
 ```
 
 ---
 
-## 🛠️ Qualité & outils
+## 🛠️ Qualité & automatisation
 
-### `.editorconfig`
-```ini
-root = true
-
-[*]
-charset = utf-8
-end_of_line = lf                # LF everywhere (matches .gitattributes)
-insert_final_newline = true
-trim_trailing_whitespace = true
-indent_style = space
-
-[*.py]
-indent_size = 4
-
-[*.{ts,tsx}]
-indent_size = 4
-
-[*.{json,yml,yaml,css,html}]
-indent_size = 2
+### `Makefile` (task runner)
+```makefile
+# make <target> — run `make` to list them all
+up:        docker compose up --build                    # DEV
+up-prod:   docker compose -f docker-compose.yml up --build
+down:      docker compose down -v
+test:      cd backend && uv run pytest -v
+lint:      cd backend && uv run ruff check --fix . && uv run ruff format .
+migrate:   cd backend && uv run alembic upgrade head
+# … + migration, dev, logs, front-dev, front-lint, front-build
 ```
+> Sur **Windows** : `scoop install make` puis lance-le depuis **Git Bash**.
 
-### `.gitattributes`
-```gitattributes
-# Force LF line endings for all text files (cross-OS consistency).
-# Critical for entrypoint.sh: CRLF would break the shebang inside the Linux container.
-* text=auto eol=lf
-
-*.png binary
-*.jpg binary
-# ... other binaries
-
-bun.lock -diff                  # hide noisy machine-generated lockfiles from diffs
-uv.lock -diff
-```
-
-### Ruff (lint + format backend)
-```bash
-cd backend
-uv run ruff check .        # lint
-uv run ruff check --fix .  # lint + auto-fix (incl. import sorting)
-uv run ruff format .       # format (like black)
-```
-
----
-
-## 🤖 CI & pre-commit
-
-### `.github/workflows/ci.yml`
-```yaml
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
-jobs:
-  backend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync
-      - run: uv run ruff check .          # lint
-      - run: uv run ruff format --check . # format check
-      - run: uv run pytest                # tests (in-memory SQLite, no Postgres needed)
-
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run lint                 # oxlint
-      - run: bun run build                # tsc typecheck + vite build
-```
-
-### `.pre-commit-config.yaml`
+### `.pre-commit-config.yaml` — Ruff depuis le venv (zéro drift)
 ```yaml
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.0
+  - repo: local
     hooks:
-      - id: ruff             # lint (auto-fix)
-        args: [--fix]
-      - id: ruff-format      # format
-
+      - id: ruff-check          # uses the project's ruff (uv.lock) → same version as CI
+        entry: uv run --project backend ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: ruff-format
+        entry: uv run --project backend ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-        args: [--unsafe]     # allow Docker Compose custom tags (!override)
+        args: [--unsafe]        # allow Docker Compose custom tags (!override)
       - id: check-added-large-files
 ```
-
-**Installation (une fois) :**
 ```bash
-uv tool install pre-commit
-pre-commit install             # branche le hook git (nécessite un repo git existant)
-pre-commit run --all-files
+uv tool install pre-commit && pre-commit install   # one-time setup
 ```
 
-Trois filets de sécurité, à des moments différents : **édition** (`.editorconfig`) → **commit** (`pre-commit`) → **push** (CI).
+### `.github/workflows/ci.yml`
+```yaml
+name: CI
+on: { push: { branches: [main] }, pull_request: }
+concurrency:                                       # cancel superseded runs
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { enable-cache: true }               # cache uv packages
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v4
+        with: { path: ~/.bun/install/cache, key: "bun-${{ hashFiles('frontend/bun.lock') }}" }
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run test:run                       # frontend tests
+      - run: bun run build
+```
+
+### `.github/dependabot.yml`
+```yaml
+version: 2
+updates:
+  - { package-ecosystem: github-actions, directory: /, schedule: { interval: weekly } }
+  - { package-ecosystem: pip, directory: /backend, schedule: { interval: weekly } }   # uv-aware
+  - { package-ecosystem: docker, directory: /backend, schedule: { interval: weekly } }
+  - { package-ecosystem: docker, directory: /frontend, schedule: { interval: weekly } }
+```
+> Le front (Bun) n'est pas couvert : Dependabot ne gère pas encore `bun.lock`. Utilise Renovate ou `bun update` si besoin.
+
+Trois filets à des moments différents : **édition** (`.editorconfig` + `.gitattributes` LF) → **commit** (pre-commit) → **push** (CI).
 
 ---
 
-## 🔄 Le flux de données (résumé)
+## 🔄 Le flux de données
 
 ```
-[ Home.tsx ]
-    │  useItems() / useCreateItem()          (React Query)
-    ▼
-[ hooks/useItems.ts ] ──► [ api/items.ts ] ──► [ axiosInstance ] ──► HTTP
-    │  invalidate on success                          │ zod .parse (runtime types)
-    ▼                                                 ▼
-la liste se rafraîchit                        FastAPI  /api/items
-                                                      │
-                              route ──► crud ──► SQLModel ──► PostgreSQL
-                              (schemas ItemCreate/ItemRead · schéma géré par Alembic)
+[ Home.tsx ] → useItems / useCreateItem (React Query)
+   → hooks/useItems.ts → api/items.ts (zod .parse) → axios → FastAPI /api/items
+   → route → crud → SQLModel → PostgreSQL   (schéma géré par Alembic)
+   ↑ invalidate on success → la liste se rafraîchit
 ```
 
 ---
 
 ## 🗺️ Prochaines étapes
 
-- [x] **Alembic** — migrations câblées (remplace `create_all`)
-- [x] **Tests** — health + items (`TestClient` + SQLite en mémoire)
-- [x] **Mode dev Docker** — hot-reload front + back (override)
-- [x] **Qualité** — Ruff, CI GitHub Actions, pre-commit, editorconfig, gitattributes
+- [x] Alembic · Tests (back + **front**) · Mode dev Docker
+- [x] Ruff · CI · pre-commit · Dependabot · Makefile · user non-root · healthchecks
 - [ ] **Auth** (JWT) → `core/security.py`, `models/user.py`, `routes/auth.py`, `deps.get_current_user`
 - [ ] **3D optionnelle** → `react-three-fiber` par projet (hors socle)
 
 ---
 
-## 🚀 Rappel des commandes
+## 🚀 Commandes (via `make`)
 
 ```bash
-# Docker
-docker compose up --build                              # DEV (hot-reload)
-docker compose -f docker-compose.yml up --build        # PROD
-docker compose down -v                                 # stop + wipe DB
-
-# Backend (local)
-cd backend && uv run uvicorn app.main:app --reload     # serveur
-cd backend && uv run pytest -v                         # tests
-cd backend && uv run ruff check --fix . && uv run ruff format .   # lint + format
-cd backend && uv run alembic revision --autogenerate -m "msg"     # migration
-cd backend && uv run alembic upgrade head              # appliquer
-
-# Frontend (local)
-cd frontend && bun run dev                             # serveur
-cd frontend && bun run lint                            # oxlint
+make               # list all targets
+make up            # DEV (hot-reload)   ·   make up-prod   ·   make down
+make test          # backend tests      ·   make lint      ·   make migrate
+make migration m="msg"                   # new migration
+# Frontend: cd frontend && bun run dev | bun run test | bun run lint
 ```

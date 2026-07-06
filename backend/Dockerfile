@@ -16,5 +16,9 @@ RUN chmod +x entrypoint.sh
 # Put uv's venv on PATH so "uvicorn"/"alembic" resolve
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Run as a non-root user
+RUN useradd --create-home appuser && chown -R appuser:appuser /app
+USER appuser
+
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel a running job when a new commit is pushed to the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -14,10 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true          # cache uv's package cache between runs
       - run: uv sync
-      - run: uv run ruff check .          # lint
-      - run: uv run ruff format --check . # format (fails if not formatted)
-      - run: uv run pytest                # tests (in-memory SQLite, no Postgres needed)
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
 
   frontend:
     runs-on: ubuntu-latest
@@ -27,6 +34,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('frontend/bun.lock') }}   # reuse Bun's cache
       - run: bun install --frozen-lockfile
-      - run: bun run lint                 # oxlint
-      - run: bun run build                # tsc typecheck + vite build
+      - run: bun run lint
+      - run: bun run test:run
+      - run: bun run build
