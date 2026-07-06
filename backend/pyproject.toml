@@ -16,6 +16,7 @@ dev = [
     "pytest>=8",
     "httpx>=0.28",
     "ruff>=0.9",
+    "pyright>=1.1.390",
 ]
 
 [tool.uv]
@@ -31,3 +32,8 @@ target-version = "py313"                # assume Python 3.13 features
 [tool.ruff.lint]
 # E=pycodestyle, F=pyflakes, I=import sorting, UP=pyupgrade, B=bugbear
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+include = ["app"]              # only type-check the app code (not alembic/tests)
+pythonVersion = "3.13"
+typeCheckingMode = "basic"     # catches real errors without excessive strictness

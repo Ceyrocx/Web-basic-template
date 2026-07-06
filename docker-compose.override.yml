@@ -12,6 +12,7 @@ services:
     command: bun run dev --host
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      VITE_API_URL: http://localhost:8000/api
     volumes:
       - ./frontend:/app
       - /app/node_modules

@@ -9,6 +9,7 @@
 ![uv](https://img.shields.io/badge/uv-Python-DE5FE9?logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
 
 > Un **repo de base** à copier-coller à chaque nouveau projet. Objectif : un fullstack **typé de bout en bout**, migré, **testé des deux côtés**, linté, dockerisé (dev **+** prod), avec CI/pre-commit — prêt à lancer en une commande, et assez commenté pour comprendre **à quoi sert chaque fichier**.
 
@@ -25,7 +26,7 @@ Petite app de démo incluse : une page **« Hello World »** + un **formulaire**
 | | **TanStack Query** · **React Router** · **Zod** | données · routing · validation |
 | | **oxlint** · **Vitest** + Testing Library | lint · tests |
 | **Backend** | **FastAPI** · **SQLModel** · **Pydantic Settings** | API · ORM · config typée |
-| | **Alembic** · **pytest** · **Ruff** · **uv** | migrations · tests · lint · paquets |
+| | **Alembic** · **pytest** · **Ruff** · **pyright** · **uv** | migrations · tests · lint · types · paquets |
 | **Infra** | **PostgreSQL 17** · **Docker Compose** (dev+prod) · **nginx** | DB · orchestration · reverse-proxy |
 | **Qualité** | **CI** · **pre-commit** · **Dependabot** · `Makefile` · `.editorconfig` · `.gitattributes` | automatisation |
 
@@ -220,27 +221,36 @@ SessionDep = Annotated[Session, Depends(get_session)]
 ```python
 # routes/health.py
 from fastapi import APIRouter
+from sqlalchemy import text
+from app.api.deps import SessionDep
+
 router = APIRouter()
 
-@router.get("/health")                      # GET /api/health
+@router.get("/health")                      # liveness — the app process is up
 def health() -> dict[str, str]:
     return {"message": "Hello World"}
+
+@router.get("/health/db")                   # readiness — the DB is reachable
+def health_db(session: SessionDep) -> dict[str, str]:
+    session.execute(text("SELECT 1"))       # raises if the DB is down
+    return {"database": "ok"}
 ```
 ```python
 # routes/items.py
 from fastapi import APIRouter
 from app.api.deps import SessionDep
 from app.crud.item import create_item, get_items
+from app.models.item import Item
 from app.schemas.item import ItemCreate, ItemRead
 
 router = APIRouter()
 
-@router.post("/items", response_model=ItemRead)   # response_model → public schema
-def add_item(item_in: ItemCreate, session: SessionDep) -> ItemRead:
+@router.post("/items", response_model=ItemRead)   # response_model = public output shape
+def add_item(item_in: ItemCreate, session: SessionDep) -> Item:   # returns the ORM object
     return create_item(session, item_in)           # item_in = JSON body, auto-validated
 
 @router.get("/items", response_model=list[ItemRead])
-def list_items(session: SessionDep) -> list[ItemRead]:
+def list_items(session: SessionDep) -> list[Item]:
     return get_items(session)
 ```
 
@@ -524,7 +534,7 @@ services:
       CORS_ORIGINS: '["http://localhost:5173"]'            # JSON → list[str]
     ports: ["${BACKEND_PORT:-8000}:8000"]
     healthcheck:                                           # uses python (no curl needed)
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/db')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -559,7 +569,9 @@ services:
   frontend:
     build: { target: build }  # use the Bun stage, not nginx
     command: bun run dev --host
-    environment: { CHOKIDAR_USEPOLLING: "true" }   # reliable file-watching on Windows
+    environment:
+      CHOKIDAR_USEPOLLING: "true"                  # reliable file-watching on Windows
+      VITE_API_URL: http://localhost:8000/api      # dev → backend directly (overrides the baked "/api")
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -738,6 +750,7 @@ up-prod:   docker compose -f docker-compose.yml up --build
 down:      docker compose down -v
 test:      cd backend && uv run pytest -v
 lint:      cd backend && uv run ruff check --fix . && uv run ruff format .
+typecheck: cd backend && uv run pyright
 migrate:   cd backend && uv run alembic upgrade head
 # … + migration, dev, logs, front-dev, front-lint, front-build
 ```
@@ -789,6 +802,7 @@ jobs:
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run ruff format --check .
+      - run: uv run pyright                         # type-check
       - run: uv run pytest
   frontend:
     runs-on: ubuntu-latest
@@ -833,9 +847,11 @@ Trois filets à des moments différents : **édition** (`.editorconfig` + `.gita
 ## 🗺️ Prochaines étapes
 
 - [x] Alembic · Tests (back + **front**) · Mode dev Docker
-- [x] Ruff · CI · pre-commit · Dependabot · Makefile · user non-root · healthchecks
+- [x] Ruff · **pyright** · CI · pre-commit · Dependabot · Makefile · user non-root · healthchecks
 - [ ] **Auth** (JWT) → `core/security.py`, `models/user.py`, `routes/auth.py`, `deps.get_current_user`
 - [ ] **3D optionnelle** → `react-three-fiber` par projet (hors socle)
+
+> 📓 Recettes complètes prêtes à suivre pour ces deux points → **[EXTENSIONS.md](EXTENSIONS.md)**
 
 ---
 
@@ -844,7 +860,7 @@ Trois filets à des moments différents : **édition** (`.editorconfig` + `.gita
 ```bash
 make               # list all targets
 make up            # DEV (hot-reload)   ·   make up-prod   ·   make down
-make test          # backend tests      ·   make lint      ·   make migrate
+make test          # backend tests   ·   make lint   ·   make typecheck   ·   make migrate
 make migration m="msg"                   # new migration
 # Frontend: cd frontend && bun run dev | bun run test | bun run lint
 ```

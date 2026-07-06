@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { render } from '@testing-library/react'
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

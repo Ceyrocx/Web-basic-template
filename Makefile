@@ -1,4 +1,4 @@
-﻿.PHONY: help up up-prod down logs dev test lint migrate migration front-dev front-lint front-build
+.PHONY: help up up-prod down logs dev test lint migrate migration front-dev front-lint front-build
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -31,6 +31,9 @@ migrate: ## Apply DB migrations
 
 migration: ## Create a migration -> make migration m="your message"
 	cd backend && uv run alembic revision --autogenerate -m "$(m)"
+
+typecheck: ## Type-check the backend (pyright)
+	cd backend && uv run pyright
 
 # ─── Frontend ──────────────────────────────────────────
 front-dev: ## Run the frontend locally (Vite)
