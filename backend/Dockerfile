@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 # Copy the uv binary from its official image (no pip install needed)
 COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /uvx /bin/
