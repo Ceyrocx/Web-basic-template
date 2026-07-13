@@ -15,6 +15,8 @@
 
 Petite app de démo incluse : une page **« Hello World »** + un **formulaire** qui ajoute un item en base et affiche la liste.
 
+> 🧬 **Repartir de ce template pour un nouveau projet** → [TEMPLATE-SETUP.md](TEMPLATE-SETUP.md)
+
 ---
 
 ## 🧱 La stack
