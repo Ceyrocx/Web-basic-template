@@ -9,7 +9,7 @@
 ![uv](https://img.shields.io/badge/uv-Python-DE5FE9?logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/Ceyrocx/Web-basic-template/actions/workflows/ci.yml/badge.svg)
 
 > Un **repo de base** à copier-coller à chaque nouveau projet. Objectif : un fullstack **typé de bout en bout**, migré, **testé des deux côtés**, linté, dockerisé (dev **+** prod), avec CI/pre-commit — prêt à lancer en une commande, et assez commenté pour comprendre **à quoi sert chaque fichier**.
 
